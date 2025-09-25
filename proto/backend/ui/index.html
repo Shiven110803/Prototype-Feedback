@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Charminar Sports</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header>
+    <h1><img class="brand-logo" src="https://upload.wikimedia.org/wikipedia/commons/6/6e/Football_%28soccer_ball%29.svg" alt="logo" /> CHARMINAR SPORTS</h1>
+    <div class="server">
+      <label>API Base URL</label>
+      <input type="text" id="apiBase" value="http://127.0.0.1:8001" readonly />
+      <label>Admin Token</label>
+      <input type="password" id="adminToken" placeholder="X-Admin-Token" />
+      <!-- Server switch buttons hidden for end users -->
+      <button id="btnUse8000" style="display:none" title="Switch to original server on 8000">Use 8000</button>
+      <button id="btnUse8001" style="display:none" title="Switch to updated server on 8001">Use 8001</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero hero-banner">
+      <div class="hero-content">
+        <h2>Find your Favorites</h2>
+        <p>Beginner-friendly. Sentiment-focused. Get your top match in seconds.</p>
+      </div>
+    </section>
+
+    <section id="sectionQuick" class="hidden-section">
+      <h2>Quick Match (12 Questions)</h2>
+      <p>Toggle your answers and click "Find My Club".</p>
+      <div id="quick12" class="quick-grid"></div>
+      <div class="row">
+        <button id="btnQuickMatch">Find My Club</button>
+        <button id="btnResetQuick" title="Clear all answers">Reset Answers</button>
+        <button id="btnDownload" title="Download result image" disabled>Download Result</button>
+        <button id="btnShare" title="Copy a shareable link" disabled>Share Link</button>
+        <div id="loadingSpinner" class="spinner hidden" aria-label="Loading"></div>
+      </div>
+      <div id="quickResult">
+        <div id="winnerCard" class="winner-card hidden"></div>
+        <div id="otherPicks" class="other-picks hidden"></div>
+        <div id="quickList"></div>
+      </div>
+    </section>
+
+    
+
+    <section id="chatMatch">
+      <h2>Chat Match</h2>
+      <div class="chat-container stadium-bg">
+        <div class="ball b1"></div>
+        <div class="ball b2"></div>
+        <div class="ball b3"></div>
+        <div class="ball b4"></div>
+        <div class="ball b5"></div>
+        <div id="welcomeIntro" class="welcome-box">
+          <h3>Welcome to Charminar Sports!</h3>
+          <p>Answer 10 quick questions and we’ll match you to a football club that fits your vibes. Ready to kick off?</p>
+        </div>
+        <div class="chat-progress">
+          <div id="chatProgressBar" class="progress-bar"><span id="chatProgressText">0 / 10</span></div>
+        </div>
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-actions">
+          <button id="btnStartChat" type="button" onclick="window.__startChat && window.__startChat()">Start</button>
+          <div id="chatButtons" class="chat-buttons hidden">
+            <button id="btnYes">Yes</button>
+            <button id="btnNo">No</button>
+            <button id="btnNeutral" class="secondary">Don't care</button>
+            <button id="btnRestartChat" class="secondary hidden">Restart</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fullscreen Result Overlay -->
+    <div id="resultOverlay" class="overlay hidden">
+      <div class="overlay-content">
+        <div class="overlay-card">
+          <div class="overlay-title">Your Club Match</div>
+          <div class="overlay-main">
+            <img id="overlayCrest" class="crest large" alt="Club crest" />
+            <div id="overlayWinner" class="overlay-winner">Team</div>
+          </div>
+          <div id="overlaySub" class="overlay-sub"></div>
+          <div class="overlay-actions">
+            <button id="btnCloseOverlay">Close</button>
+            <button id="btnDownloadOverlay">Download</button>
+            <button id="btnShareOverlay">Share</button>
+            <button id="btnLearnMore">Learn More</button>
+          </div>
+        </div>
+      </div>
+      <div id="overlayConfetti" class="overlay-confetti"></div>
+    </div>
+    <section id="sectionAttributes" class="hidden-section">
+      <h2>Attributes</h2>
+      <div class="row">
+        <input type="text" id="attrName" placeholder="Attribute name" />
+        <input type="text" id="attrDesc" placeholder="Description (optional)" />
+        <button id="btnAddAttr">Add Attribute</button>
+        <button id="btnRefreshAttrs">Refresh</button>
+      </div>
+      <ul id="attrList"></ul>
+    </section>
+
+    <section id="sectionTeams" class="hidden-section">
+      <h2>Teams</h2>
+      <div class="row">
+        <input type="text" id="teamName" placeholder="Team name" />
+        <input type="text" id="teamLeague" placeholder="Meta: league (optional)" />
+        <button id="btnAddTeam">Add Team</button>
+        <button id="btnRefreshTeams">Refresh</button>
+      </div>
+      <div id="teamsContainer"></div>
+    </section>
+
+    <section class="hidden-section">
+      <h2>Questionnaire & Prediction (Advanced)</h2>
+      <div class="row">
+        <input type="text" id="userId" placeholder="User ID (optional)" />
+        <button id="btnCreateQ">Create Questionnaire</button>
+        <span id="currentQ"></span>
+      </div>
+      <div id="questions"></div>
+      <div class="row">
+        <button id="btnSaveResponses" disabled>Save Responses</button>
+        <button id="btnPredict" disabled>Get Predictions</button>
+      </div>
+      <div id="predictions"></div>
+    </section>
+
+    <section class="hidden-section">
+      <h2>Analytics</h2>
+      <div class="row">
+        <button id="btnAnalytics">Refresh Analytics</button>
+        <button id="btnTrain">Train Model</button>
+      </div>
+      <div id="analytics"></div>
+    </section>
+
+    <section class="hidden-section">
+      <h2>Admin</h2>
+      <div class="row">
+        <button id="btnReset">Reset DB</button>
+        <button id="btnReseed">Reseed Demo</button>
+        <button id="btnDeleteModel">Delete Model</button>
+      </div>
+      <div id="adminStatus"></div>
+    </section>
+  </main>
+
+  <footer>
+    <small>Powered by Smart Feedback & Analytics • Need help? Contact support</small>
+  </footer>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <svg class="side-logo" viewBox="0 0 64 64" role="img" aria-label="Charminar">
+    <title>Charminar</title>
+    <g fill="#e5e7eb" stroke="#94a3b8" stroke-width="0.5">
+      <rect x="14" y="36" width="36" height="18" rx="2"/>
+      <rect x="20" y="30" width="24" height="6"/>
+      <rect x="18" y="24" width="28" height="6"/>
+      <rect x="12" y="16" width="8" height="20"/>
+      <rect x="44" y="16" width="8" height="20"/>
+      <rect x="12" y="12" width="8" height="4"/>
+      <rect x="44" y="12" width="8" height="4"/>
+      <circle cx="16" cy="10" r="2"/>
+      <circle cx="48" cy="10" r="2"/>
+    </g>
+  </svg>
+
+  <script src="./main.js"></script>
+</body>
+</html>

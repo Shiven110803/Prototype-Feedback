@@ -306,14 +306,14 @@ def create_team(payload: TeamCreate, db: Session = Depends(get_db)):
 @app.get("/teams", response_model=List[TeamOut])
 def list_teams(db: Session = Depends(get_db), sport: Optional[str] = Query(default=None)):
     teams = db.query(Team).order_by(Team.id.asc()).all()
-    if sport and sport.lower() == "cricket":
+    if sport:
         def _sport_of(t: Team) -> Optional[str]:
             try:
                 m = json.loads(t.meta) if t.meta else {}
                 return (m or {}).get("sport")
             except Exception:
                 return None
-        teams = [t for t in teams if (_sport_of(t) or "").lower() == "cricket"]
+        teams = [t for t in teams if (_sport_of(t) or "").lower() == sport.lower()]
     return [_team_to_out(t, db) for t in teams]
 
 
@@ -433,7 +433,16 @@ def train_model(db: Session = Depends(get_db), sport: Optional[str] = Query(defa
     attributes = db.query(Attribute).order_by(Attribute.id.asc()).all()
     attribute_ids = [a.id for a in attributes]
     teams = db.query(Team).order_by(Team.id.asc()).all()
+    if sport:
+        def _sport_of(t: Team) -> Optional[str]:
+            try:
+                m = json.loads(t.meta) if t.meta else {}
+                return (m or {}).get("sport")
+            except Exception:
+                return None
+        teams = [t for t in teams if (_sport_of(t) or "").lower() == sport.lower()]
     team_ids = [t.id for t in teams]
+    allowed_team_ids = set(team_ids)
 
     # Preload maps
     team_attr_map: Dict[int, Dict[int, int]] = {
@@ -446,6 +455,9 @@ def train_model(db: Session = Depends(get_db), sport: Optional[str] = Query(defa
     y: List[int] = []
 
     for fb in feedback_rows:
+        # Skip feedback for teams not in the selected universe (prevents cross-sport leakage)
+        if fb.team_id not in allowed_team_ids:
+            continue
         # Load questionnaire responses once per questionnaire
         if fb.questionnaire_id not in q_resp_map:
             q_resps = db.query(QuestionnaireResponse).filter(
@@ -464,7 +476,8 @@ def train_model(db: Session = Depends(get_db), sport: Optional[str] = Query(defa
     if len(set(y)) < 2:
         raise HTTPException(status_code=400, detail="Not enough class variety in feedback to train a model")
 
-    model = LogisticRegression(max_iter=1000)
+    # Balance classes to avoid over-favoring teams with more positive labels
+    model = LogisticRegression(max_iter=1000, class_weight='balanced')
     model.fit(np.array(X), np.array(y))
 
     save_model(model, attribute_ids, team_ids, sport=sport)

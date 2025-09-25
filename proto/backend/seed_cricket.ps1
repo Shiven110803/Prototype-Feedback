@@ -10,9 +10,9 @@ param(
 Write-Host "Seeding Cricket data to $ApiBase" -ForegroundColor Cyan
 
 function PostJson($Url, $Body) {
-  return Invoke-RestMethod -Uri $Url -Method Post -Body ($Body | ConvertTo-Json -Depth 8) -ContentType 'application/json'
+  return Invoke-RestMethod -Uri $Url -Method Post -Body ($Body | ConvertTo-Json -Depth 8) -ContentType 'application/json' -ErrorAction Stop
 }
-function GetJson($Url) { return Invoke-RestMethod -Uri $Url -Method Get -ContentType 'application/json' }
+function GetJson($Url) { return Invoke-RestMethod -Uri $Url -Method Get -ContentType 'application/json' -ErrorAction Stop }
 
 function PostTeamAttributes($ApiBase, $TeamId, $Mapping) {
   # $Mapping is hashtable with numeric keys; serialize manually with keys as strings
@@ -66,7 +66,7 @@ $teamId = @{}
 foreach ($t in $teams) {
   try {
     $resp = PostJson "$ApiBase/teams" @{ name = $t; meta = @{ type = 'national'; sport = 'cricket' } }
-    $teamId[$resp.name] = [int]$resp.id
+    if ($resp -and $resp.name -and $resp.id) { $teamId[$resp.name] = [int]$resp.id }
   } catch {
     $allT = GetJson "$ApiBase/teams"
     $match = $allT | Where-Object { $_.name -eq $t }
@@ -96,7 +96,7 @@ foreach ($pair in $profiles.GetEnumerator()) {
   foreach ($a in $attrId.GetEnumerator()) { $mapping[$a.Value] = 0 }
   foreach ($an in $vals) { if ($attrId.ContainsKey($an)) { $mapping[$attrId[$an]] = 1 } }
   # set (manual JSON to avoid ConvertTo-Json issues)
-  PostTeamAttributes $ApiBase $tid $mapping
+  PostTeamAttributes $ApiBase $tid $mapping | Out-Null
 }
 
 # 5) Create synthetic questionnaires + responses and feedback
@@ -118,24 +118,49 @@ for ($i=0; $i -lt $Questionnaires; $i++) {
   }
   PostJson "$ApiBase/questionnaires/$qid/responses" @{ responses = $responses }
 
-  # Feedback: label a few teams as supported based on preference-team overlap
+  # Feedback: compute scores for all teams, then enforce both classes per questionnaire
+  $teamScores = @()
   foreach ($t in $teams) {
     $tid = $teamId[$t]
     if (-not $tid) { continue }
     $tResp = GetJson "$ApiBase/teams/$tid"
     $tAttrs = $tResp.attributes
+    if (-not $tAttrs) { continue }
     $overlap = 0; $wanted = 0
-    foreach ($kv in $tAttrs.GetEnumerator()) {
-      $aid = [int]$kv.Key
-      $has = [int]$kv.Value
+    $attrKeys = @($tAttrs.PSObject.Properties.Name)
+    foreach ($k in $attrKeys) {
+      $aid = [int]$k
+      $has = [int]$tAttrs[$k]
       $prefObj = $responses | Where-Object { $_.attribute_id -eq $aid }
       $pref = if ($prefObj) { [int]$prefObj.value } else { 0 }
       if ($pref -eq 1) { $wanted++ }
       if ($pref -eq 1 -and $has -eq 1) { $overlap++ }
     }
     $ratio = if ($wanted -gt 0) { [double]$overlap / [double]$wanted } else { 0.0 }
-    $supported = if ($ratio -ge 0.45) { 1 } else { 0 }
-    PostJson "$ApiBase/feedback" @{ questionnaire_id = $qid; team_id = $tid; supported = $supported }
+    $teamScores += [pscustomobject]@{ team_id = $tid; ratio = $ratio }
+  }
+  # Decide supported based on threshold, then enforce at least one positive and one negative
+  $threshold = 0.30
+  $labels = @{}
+  $posCount = 0; $negCount = 0
+  foreach ($row in $teamScores) {
+    $label = if ($row.ratio -ge $threshold) { 1 } else { 0 }
+    $labels[$row.team_id] = $label
+    if ($label -eq 1) { $posCount++ } else { $negCount++ }
+  }
+  if ($posCount -eq 0 -and $teamScores.Count -gt 0) {
+    # force top ratio to positive
+    $top = ($teamScores | Sort-Object -Property ratio -Descending | Select-Object -First 1)
+    $labels[$top.team_id] = 1; $posCount = 1
+  }
+  if ($negCount -eq 0 -and $teamScores.Count -gt 1) {
+    # force lowest ratio to negative (if more than one team)
+    $bot = ($teamScores | Sort-Object -Property ratio -Ascending | Select-Object -First 1)
+    $labels[$bot.team_id] = 0; $negCount = 1
+  }
+  foreach ($row in $teamScores) {
+    $lab = [int]$labels[$row.team_id]
+    PostJson "$ApiBase/feedback" @{ questionnaire_id = $qid; team_id = $row.team_id; supported = $lab } | Out-Null
   }
 }
 

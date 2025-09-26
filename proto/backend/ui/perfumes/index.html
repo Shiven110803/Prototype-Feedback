@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fragrance Finder – Charminar Predicts</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="confetti-canvas"></div>
+  <main class="container">
+    <header class="hero">
+      <h1>Find Your Mist Match</h1>
+      <p id="hero-sub">Answer 10 quick questions and we’ll suggest a fine fragrance mist that matches your vibe.</p>
+    </header>
+
+    <div class="segment-switch card">
+      <div class="segment-label">I'm shopping for</div>
+      <div class="segmented" role="tablist" aria-label="Fragrance segment switcher">
+        <button id="seg-women" class="seg-btn active" role="tab" aria-selected="true">Women</button>
+        <button id="seg-men" class="seg-btn" role="tab" aria-selected="false">Men</button>
+      </div>
+    </div>
+
+    <section id="quiz" class="card">
+      <div class="progress">
+        <div id="progress-text">Question 1 of 10</div>
+        <div class="bar"><div id="progress-bar"></div></div>
+      </div>
+
+      <div id="question-text" class="question">Loading…</div>
+
+      <div class="actions">
+        <button id="btn-yes" class="btn yes">Yes</button>
+        <button id="btn-no" class="btn no">No</button>
+        <button id="btn-any" class="btn any">Don't care</button>
+      </div>
+
+      <div class="footnote">Tip: Go with your first instinct – there are no wrong answers.</div>
+    </section>
+
+    <section id="result" class="card hidden">
+      <h2>Your Match</h2>
+      <div class="result-body">
+        <div class="result-media">
+          <img id="rec-image" class="bottle" alt="Fragrance bottle" src="" referrerpolicy="no-referrer" />
+        </div>
+        <div class="result-text">
+          <div class="pill" id="brand-pill">Brand</div>
+          <h3 id="rec-name">Fragrance Name</h3>
+          <p id="rec-desc" class="desc">Description</p>
+          <div class="notes">
+            <div><strong>Scent family:</strong> <span id="rec-family">—</span></div>
+            <div><strong>Base notes:</strong> <span id="rec-basenotes">—</span></div>
+          </div>
+          <a id="buy-link" class="btn primary" href="#" target="_blank" rel="noopener">Buy now</a>
+          <button id="view-gallery" class="btn ghost" type="button">View gallery</button>
+          <div id="score-line" class="score-line"></div>
+        </div>
+      </div>
+      <div id="img-status" class="footnote" style="display:none"></div>
+      <div class="result-actions">
+        <button id="btn-exhibitions" class="btn any">Nearest Exhibitions</button>
+        <button id="btn-restart" class="btn ghost">Retake Quiz</button>
+        <button id="btn-change-picture" class="btn ghost" title="Paste an image URL to use as this bottle photo">Use new picture</button>
+        <button id="btn-reset-picture" class="btn ghost" title="Remove custom image and restore default">Reset picture</button>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <small>Not affiliated with Victoria’s Secret or Bath & Body Works. Links go to official stores where possible.</small>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

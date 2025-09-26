@@ -1,10 +1,40 @@
 // Minimal helper
 const $ = (sel) => document.querySelector(sel);
+
+// Inline SVG data URIs for brand logo to avoid external loads
+const FOOTBALL_LOGO_DATA = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%230b132b" stroke="%2394a3b8"/><g fill="%23ffffff"><polygon points="32,14 24,20 28,28 36,28 40,20"/><polygon points="18,26 12,34 18,42 26,38 24,30"/><polygon points="46,26 40,30 38,38 46,42 52,34"/><polygon points="24,44 32,38 40,44 36,52 28,52"/></g></svg>';
+const CRICKET_LOGO_DATA = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%237f1d1d" stroke="%23fecaca"/><path d="M10 28 C 28 32, 36 36, 54 40" stroke="%23fecdd3" stroke-width="2" fill="none"/><path d="M10 24 C 28 28, 36 40, 54 44" stroke="%23fda4af" stroke-width="1" fill="none" stroke-dasharray="3 3"/></svg>';
+const F1_LOGO_DATA = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 24"><rect width="64" height="24" rx="4" fill="%23111" stroke="%23ef4444"/><path d="M6 16 L22 16 L26 8 L14 8 Z" fill="%23ef4444"/><rect x="30" y="8" width="8" height="8" fill="%23ef4444"/></svg>';
 const apiBaseInput = $('#apiBase');
 const adminTokenInput = $('#adminToken');
 
 const headers = () => ({ 'Content-Type': 'application/json' });
 const adminHeaders = () => ({ 'Content-Type': 'application/json', 'X-Admin-Token': adminTokenInput.value || '' });
+
+// Ensure API base points to a live server (try current origin, then 8000, then 8001)
+async function ensureApiBaseAlive() {
+  const tryPing = async (base) => {
+    try {
+      const r = await fetch(`${base}/analytics`, { method: 'GET' });
+      return r.ok;
+    } catch { return false; }
+  };
+  const candidates = [];
+  if (window?.location?.origin) candidates.push(window.location.origin);
+  candidates.push('http://127.0.0.1:8000');
+  candidates.push('http://127.0.0.1:8001');
+  for (const base of candidates) {
+    if (await tryPing(base)) {
+      if (apiBaseInput) apiBaseInput.value = base;
+      if (base !== window.location.origin) {
+        showToast(`API connected: ${base}`, 'success');
+      }
+      return base;
+    }
+  }
+  showToast('API server unreachable. Start backend on 8000 or 8001.', 'error');
+  return null;
+}
 
 const state = {
   attributes: [],
@@ -13,6 +43,22 @@ const state = {
   responses: {},
   quickAnswers: {},
   chat: { active: false, step: 0, answers: {}, currentKey: null, asked: {}, lastAnswerAt: 0, sport: 'football' },
+};
+
+// F1 questions (personality-first)
+const f1Keys = [
+  'Calm vs Aggressive','Bold Overtakes','Consistency over Wins','Clutch Performances','Radio Composure','Rich Legacy (F1)','Leadership & Mentoring','Adaptability (Wet/Tricky)','Fan Engagement','Technical Feedback'];
+const f1Labels = {
+  'Calm vs Aggressive':'Do you prefer calm, calculated drivers over aggressive risk-takers?',
+  'Bold Overtakes':'Do you enjoy bold overtakes even if they’re risky?',
+  'Consistency over Wins':'Is consistent points scoring more important than occasional wins?',
+  'Clutch Performances':'Do clutch, high-pressure performances matter to you?',
+  'Radio Composure':'Do you value calm and positive team-radio communication?',
+  'Rich Legacy (F1)':'Do you prefer drivers with a rich F1 history and legacy?',
+  'Leadership & Mentoring':'Do you like drivers known for leadership and mentoring?',
+  'Adaptability (Wet/Tricky)':'Is adaptability to wet or tricky conditions important to you?',
+  'Fan Engagement':'Do you care about a driver’s fan engagement and charisma?',
+  'Technical Feedback':'Do you value strong technical feedback and car development input?'
 };
 
 // Server switch buttons
@@ -42,6 +88,8 @@ function applySportFromQuery() {
     }
     const chatContainer = document.querySelector('#chatMatch .chat-container');
     if (chatContainer) { chatContainer.classList.add('stadium-bg'); chatContainer.classList.remove('cricket-bg'); }
+    const logo = document.getElementById('brandLogo');
+    if (logo) logo.src = FOOTBALL_LOGO_DATA;
   } else if (sport === 'cricket') {
     state.chat.sport = 'cricket';
     const home = document.getElementById('homeSelect');
@@ -53,9 +101,22 @@ function applySportFromQuery() {
     }
     // apply cricket theme background
     const chatContainer = document.querySelector('#chatMatch .chat-container');
-    if (chatContainer) { chatContainer.classList.add('cricket-bg'); chatContainer.classList.remove('stadium-bg'); }
+    if (chatContainer) { chatContainer.classList.add('cricket-bg'); chatContainer.classList.remove('stadium-bg'); chatContainer.classList.remove('f1-bg'); }
+    const logo = document.getElementById('brandLogo');
+    if (logo) logo.src = CRICKET_LOGO_DATA;
   } else if (sport === 'f1') {
-    showToast('F1 coming soon!', 'success');
+    state.chat.sport = 'f1';
+    const home = document.getElementById('homeSelect');
+    const chat = document.getElementById('chatMatch');
+    if (home && chat) {
+      home.classList.add('hidden-section');
+      chat.classList.remove('hidden-section');
+      chat.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    const chatContainer = document.querySelector('#chatMatch .chat-container');
+    if (chatContainer) { chatContainer.classList.add('f1-bg'); chatContainer.classList.remove('stadium-bg'); chatContainer.classList.remove('cricket-bg'); }
+    const logo = document.getElementById('brandLogo'); if (logo) logo.src = F1_LOGO_DATA;
+    showToast('F1 selected', 'success');
   }
 }
 
@@ -74,10 +135,10 @@ const footballKeys = [
   'Global Fanbase'
 ];
 const footballLabels = {
-  'Community Engagement': 'Do you value clubs with a prominent presence in charity and community work?',
+  'Community Engagement': 'Do you value teams with a prominent presence in charity and community work?',
   'Possession Play': 'Do you enjoy possession-based play?',
-  'Youth Academy': 'Do you prefer clubs known for nurturing homegrown players?',
-  'National Team Contributors': 'Is it important that your club regularly provides players to the national team?',
+  'Youth Academy': 'Do you prefer teams known for nurturing homegrown players?',
+  'National Team Contributors': 'Is it important that your team regularly provides players to the national team?',
   'Iconic Players': 'Are you drawn to teams with iconic superstars and big personalities?',
   'Atmospheric Stadium': 'Do you enjoy an electric, passionate matchday atmosphere?',
   'Derby Specialists': 'Do historic rivalries and derby storylines excite you?',
@@ -112,12 +173,8 @@ const cricketLabels = {
   'Passionate Fanbase': 'Do you like teams with huge, passionate fan support?'
 };
 
-function chatKeys() {
-  return state.chat.sport === 'cricket' ? cricketKeys : footballKeys;
-}
-function chatLabels() {
-  return state.chat.sport === 'cricket' ? cricketLabels : footballLabels;
-}
+function chatKeys() { if (state.chat.sport==='cricket') return cricketKeys; if (state.chat.sport==='f1') return f1Keys; return footballKeys; }
+function chatLabels() { if (state.chat.sport==='cricket') return cricketLabels; if (state.chat.sport==='f1') return f1Labels; return footballLabels; }
 const btnSportFootball = document.getElementById('btnSportFootball');
 const btnSportCricket = document.getElementById('btnSportCricket');
 const btnSportF1 = document.getElementById('btnSportF1');
@@ -126,16 +183,31 @@ function setSportActive(btn) {
   if (btn) btn.classList.add('active');
 }
 if (btnSportFootball) btnSportFootball.addEventListener('click', () => {
+  state.chat.sport = 'football';
   setSportActive(btnSportFootball);
+  const chatContainer = document.querySelector('#chatMatch .chat-container');
+  if (chatContainer) { chatContainer.classList.add('stadium-bg'); chatContainer.classList.remove('cricket-bg'); }
+  const logo = document.getElementById('brandLogo'); if (logo) logo.src = FOOTBALL_LOGO_DATA;
+  showChat();
   showToast('Football selected', 'success');
 });
 if (btnSportCricket) btnSportCricket.addEventListener('click', () => {
-  showToast('Cricket coming soon!', 'success');
-  setSportActive(btnSportFootball);
+  state.chat.sport = 'cricket';
+  setSportActive(btnSportCricket);
+  const chatContainer = document.querySelector('#chatMatch .chat-container');
+  if (chatContainer) { chatContainer.classList.add('cricket-bg'); chatContainer.classList.remove('stadium-bg'); }
+  const logo = document.getElementById('brandLogo'); if (logo) logo.src = CRICKET_LOGO_DATA;
+  showChat();
+  showToast('Cricket selected', 'success');
 });
 if (btnSportF1) btnSportF1.addEventListener('click', () => {
-  showToast('F1 coming soon!', 'success');
-  setSportActive(btnSportFootball);
+  state.chat.sport = 'f1';
+  setSportActive(btnSportF1);
+  const chatContainer = document.querySelector('#chatMatch .chat-container');
+  if (chatContainer) { chatContainer.classList.add('f1-bg'); chatContainer.classList.remove('stadium-bg'); chatContainer.classList.remove('cricket-bg'); }
+  const logo = document.getElementById('brandLogo'); if (logo) logo.src = F1_LOGO_DATA;
+  showChat();
+  showToast('F1 selected', 'success');
 });
 
 // Short descriptions for the 15 famous clubs
@@ -158,6 +230,23 @@ function teamDescription(name) {
     'AC Milan': 'Rossoneri tradition—European royalty with iconic players and a classic football aura.',
   };
   return m[name] || '';
+}
+
+// F1 constructor names
+function driverTeamF1(name) {
+  const teams = {
+    'Max Verstappen': 'Red Bull Racing',
+    'Sergio Pérez': 'Red Bull Racing',
+    'Lewis Hamilton': 'Mercedes',
+    'George Russell': 'Mercedes',
+    'Charles Leclerc': 'Ferrari',
+    'Carlos Sainz': 'Ferrari',
+    'Lando Norris': 'McLaren',
+    'Oscar Piastri': 'McLaren',
+    'Fernando Alonso': 'Aston Martin',
+    'Daniel Ricciardo': 'RB (Visa Cash App RB)'
+  };
+  return teams[name] || '';
 }
 
 function updateChatProgress() {
@@ -412,7 +501,7 @@ function renderQuick12() {
     cb.checked = !!state.quickAnswers[k];
     cb.addEventListener('change', () => { state.quickAnswers[k] = cb.checked ? 1 : 0; });
     const span = document.createElement('span');
-    span.textContent = quickLabels[k] || k;
+    span.textContent = footballLabels[k] || k;
     row.appendChild(cb);
     row.appendChild(span);
     wrap.appendChild(row);
@@ -430,7 +519,7 @@ async function findMyClub() {
   const byName = {};
   attrs.forEach(a => { byName[a.name] = a.id; });
   const responses = [];
-  quickKeys.forEach(k => {
+  footballKeys.forEach(k => {
     const id = byName[k];
     if (!id) return;
     const val = state.quickAnswers[k] ? 1 : 0;
@@ -557,6 +646,97 @@ function getCrestCricket(name) {
   return m[name] || '';
 }
 
+// ---- F1 helpers ----
+function normalizeF1Name(s) {
+  try {
+    return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  } catch { return String(s||''); }
+}
+function crestMapF1() {
+  // Built-in defaults (Wikimedia or similar stable sources). You can override via window.__F1_IMAGES.
+  const builtin = {
+    'Max Verstappen': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Max_Verstappen_2023_%28cropped%29.jpg/256px-Max_Verstappen_2023_%28cropped%29.jpg',
+    'Lewis Hamilton': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Lewis_Hamilton_2018_%28cropped%29.jpg/256px-Lewis_Hamilton_2018_%28cropped%29.jpg',
+    'Charles Leclerc': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Charles_Leclerc_2019_Italian_GP_%28cropped%29.jpg/256px-Charles_Leclerc_2019_Italian_GP_%28cropped%29.jpg',
+    'Carlos Sainz': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Carlos_Sainz_Jr._2019_Formula_One_tests_Barcelona_%28cropped%29.jpg/256px-Carlos_Sainz_Jr._2019_Formula_One_tests_Barcelona_%28cropped%29.jpg',
+    'Lando Norris': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Lando_Norris_2019_Formula_One_tests_Barcelona_%28cropped%29.jpg/256px-Lando_Norris_2019_Formula_One_tests_Barcelona_%28cropped%29.jpg',
+    'George Russell': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/George_Russell_2019_Formula_One_tests_Barcelona_%28cropped%29.jpg/256px-George_Russell_2019_Formula_One_tests_Barcelona_%28cropped%29.jpg',
+    'Fernando Alonso': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Fernando_Alonso_2016_Malaysia_2_%28cropped%29.jpg/256px-Fernando_Alonso_2016_Malaysia_2_%28cropped%29.jpg',
+    'Sergio Pérez': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Sergio_P%C3%A9rez_2019_Formula_One_tests_Barcelona_%28cropped%29.jpg/256px-Sergio_P%C3%A9rez_2019_Formula_One_tests_Barcelona_%28cropped%29.jpg',
+    'Oscar Piastri': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Oscar_Piastri_2021_Emilia_Romagna_FIA_Formula_3_round_%28cropped%29.jpg/256px-Oscar_Piastri_2021_Emilia_Romagna_FIA_Formula_3_round_%28cropped%29.jpg',
+    'Daniel Ricciardo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Daniel_Ricciardo_2019_Formula_One_tests_Barcelona_%28cropped%29.jpg/256px-Daniel_Ricciardo_2019_Formula_One_tests_Barcelona_%28cropped%29.jpg',
+  };
+  const override = (window.__F1_IMAGES && typeof window.__F1_IMAGES === 'object') ? window.__F1_IMAGES : {};
+  // Build a map that also contains normalized (accent-free) keys for robustness
+  const out = Object.assign({}, builtin, override);
+  const extra = {};
+  Object.keys(out).forEach(k => { extra[normalizeF1Name(k)] = out[k]; });
+  return Object.assign(out, extra);
+}
+function f1Drivers() {
+  return [
+    'Max Verstappen','Lewis Hamilton','Charles Leclerc','Carlos Sainz','Lando Norris',
+    'George Russell','Fernando Alonso','Sergio Pérez','Oscar Piastri','Daniel Ricciardo'
+  ];
+}
+function f1Initials(name) {
+  const parts = String(name||'').split(/\s+/).filter(Boolean);
+  const a = (parts[0]||'F')[0];
+  const b = (parts[1]||'1')[0];
+  return (a + b).toUpperCase();
+}
+function getCrestF1(name) {
+  const m = crestMapF1();
+  const url = (m && (m[name] || m[normalizeF1Name(name)]));
+  if (url) return url; // prefer provided photo
+  // fallback: initials avatar
+  const bg = '%230a0f1f'; const stroke = '%23ef4444'; const fill = '%23e2e8f0';
+  const txt = encodeURIComponent(f1Initials(name));
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='2' y='2' width='60' height='60' rx='12' fill='${bg}' stroke='${stroke}'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Arial, Helvetica, sans-serif' font-size='22' fill='${fill}'>${txt}</text></svg>`;
+  return `data:image/svg+xml;utf8,${svg}`;
+}
+
+// Try to resolve a Wikipedia thumbnail for a driver name
+async function resolveF1Image(name) {
+  try {
+    const aliases = (n) => {
+      const base = normalizeF1Name(n);
+      const list = [base];
+      // Known alias/title variants
+      if (/^carlos\s+sainz$/i.test(base)) list.push('Carlos Sainz Jr.');
+      if (/^sergio\s+perez$/i.test(base)) list.push('Sergio Pérez');
+      return list;
+    };
+    for (const t of aliases(name)) {
+      const title = encodeURIComponent(t);
+      const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${title}&prop=pageimages&pithumbsize=256&format=json&origin=*`;
+      const res = await fetch(url, { mode: 'cors' });
+      const data = await res.json();
+      const pages = data?.query?.pages || {};
+      for (const k in pages) {
+        const thumb = pages[k]?.thumbnail?.source;
+        if (thumb) return thumb;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+function driverDescriptionF1(name) {
+  const m = {
+    'Max Verstappen': 'Aggressive racecraft, relentless pace, supreme consistency at the front.',
+    'Lewis Hamilton': 'Calm under pressure, elite race management, vocal leader and icon.',
+    'Charles Leclerc': 'Qualifying ace with fearless overtakes and Ferrari talisman energy.',
+    'Carlos Sainz': 'Calculated, consistent, strategic thinker with strong team play.',
+    'Lando Norris': 'Quick, adaptable, composed on radio with strong fan connection.',
+    'George Russell': 'Methodical, technical, thrives under pressure, future-focused.',
+    'Fernando Alonso': 'Legendary racecraft, opportunistic, maximizes any situation.',
+    'Sergio Pérez': 'Tyre whisperer, clutch on strategy, decisive in traffic.',
+    'Oscar Piastri': 'Rising star, calm and clinical, strong adaptation curve.',
+    'Daniel Ricciardo': 'Late-braking master, charismatic, morale-boosting presence.'
+  };
+  return m[name] || '';
+}
+
 // Cricket team short descriptions
 function teamDescriptionCricket(name) {
   const m = {
@@ -600,7 +780,7 @@ async function downloadResult() {
   }
   const canvas = await window.html2canvas(winner);
   const link = document.createElement('a');
-  link.download = 'my-top-club.png';
+  link.download = 'my-top-team.png';
   link.href = canvas.toDataURL('image/png');
   link.click();
 }
@@ -688,7 +868,8 @@ const btnNo = document.getElementById('btnNo');
 const btnRestartChat = document.getElementById('btnRestartChat');
 
 function chatReset() {
-  state.chat = { active: false, step: 0, answers: {}, currentKey: null, asked: {}, lastAnswerAt: 0 };
+  const currentSport = state.chat?.sport || 'football';
+  state.chat = { active: false, step: 0, answers: {}, currentKey: null, asked: {}, lastAnswerAt: 0, sport: currentSport };
   if (chatMessages) chatMessages.innerHTML = '';
   const startBtn = document.getElementById('btnStartChat');
   if (startBtn) startBtn.classList.remove('hidden');
@@ -737,7 +918,7 @@ function startChat() {
   if (startBtn) startBtn.classList.add('hidden');
   const chatButtons = document.getElementById('chatButtons');
   if (chatButtons) chatButtons.classList.remove('hidden');
-  appendBubble("Let's find your club! I'll ask 10 quick questions. Ready?", 'bot');
+  appendBubble("Let's find your team! I'll ask 10 quick questions. Ready?", 'bot');
   updateChatProgress();
   setTimeout(() => {
     try { askNext(); } catch (e) { console.error(e); showToast('Something went wrong starting chat', 'error'); }
@@ -802,7 +983,8 @@ async function finishChat() {
     // don't-care (null/undefined) -> skip, so it doesn't affect scoring
   });
   await fetch(`${apiBaseInput.value}/questionnaires/${qid}/responses`, { method: 'POST', headers: headers(), body: JSON.stringify({ responses }) });
-  const predRes = await fetch(`${apiBaseInput.value}/predict`, { method: 'POST', headers: headers(), body: JSON.stringify({ questionnaire_id: qid, blend: null, weights_profile: 'sentiment_v1' }) });
+  const sportParam2 = state.chat.sport ? `?sport=${encodeURIComponent(state.chat.sport)}` : '';
+  const predRes = await fetch(`${apiBaseInput.value}/predict${sportParam2}`, { method: 'POST', headers: headers(), body: JSON.stringify({ questionnaire_id: qid, blend: null, weights_profile: 'sentiment_v1' }) });
   const pred = await predRes.json();
   showOverlayResults((pred.scores||[]));
   const chatButtons = document.getElementById('chatButtons');
@@ -826,19 +1008,73 @@ function showOverlayResults(scores) {
   } else if (state.chat.sport === 'cricket') {
     const cricketTeams = new Set(['India','Pakistan','Sri Lanka','West Indies','Australia','New Zealand','England','South Africa']);
     filtered = scores.filter(s => cricketTeams.has(s.team_name));
+  } else if (state.chat.sport === 'f1') {
+    const known = new Set(f1Drivers());
+    filtered = scores.filter(s => known.has(s.team_name));
   }
   const [top, ...rest] = filtered.length ? filtered : scores;
   if (!top) return;
-  const crest = state.chat.sport === 'cricket' ? getCrestCricket(top.team_name) : getCrest(top.team_name);
-  if (crestImg) crestImg.src = crest;
-  if (winnerText) { winnerText.textContent = top.team_name; winnerText.classList.add('pulse'); }
+  const crest = (state.chat.sport === 'cricket') ? getCrestCricket(top.team_name) : (state.chat.sport === 'f1') ? getCrestF1(top.team_name) : getCrest(top.team_name);
+  if (crestImg) {
+    crestImg.setAttribute('referrerpolicy','no-referrer');
+    crestImg.setAttribute('crossorigin','anonymous');
+    crestImg.src = crest;
+    crestImg.onerror = async () => {
+      if (state.chat.sport === 'f1') {
+        const name = top.team_name;
+        // Try Wikipedia blob fallback once
+        if (!crestImg.dataset.triedWikiBlob) {
+          crestImg.dataset.triedWikiBlob = '1';
+          try {
+            const wiki = await resolveF1Image(name);
+            if (wiki) {
+              const resp = await fetch(wiki, { mode: 'cors' });
+              if (resp.ok) {
+                const blob = await resp.blob();
+                const objUrl = URL.createObjectURL(blob);
+                crestImg.src = objUrl;
+                return;
+              }
+            }
+          } catch (e) { /* ignore and fall through */ }
+        }
+        // Final fallback to initials avatar
+        const bg = '%230a0f1f'; const stroke = '%23ef4444'; const fill = '%23e2e8f0';
+        const txt = encodeURIComponent(f1Initials(name));
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='2' y='2' width='60' height='60' rx='12' fill='${bg}' stroke='${stroke}'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Arial, Helvetica, sans-serif' font-size='22' fill='${fill}'>${txt}</text></svg>`;
+        crestImg.src = `data:image/svg+xml;utf8,${svg}`;
+      }
+    };
+    // Proactively try Wikipedia API for F1 to improve success rate
+    if (state.chat.sport === 'f1') {
+      (async () => {
+        const wiki = await resolveF1Image(top.team_name);
+        if (wiki) {
+          try {
+            // Try direct URL first
+            crestImg.src = wiki;
+          } catch {}
+        }
+      })();
+    }
+  }
+  if (winnerText) {
+    const name = top.team_name;
+    const label = (state.chat.sport === 'f1') ? `${name}${driverTeamF1(name) ? ' — ' + driverTeamF1(name) : ''}` : name;
+    winnerText.textContent = label;
+    winnerText.classList.add('pulse');
+  }
   if (sub) {
     const second = rest[0]; const third = rest[1];
-    const desc = state.chat.sport === 'cricket' ? teamDescriptionCricket(top.team_name) : teamDescription(top.team_name);
+    const desc = (state.chat.sport === 'cricket') ? teamDescriptionCricket(top.team_name) : (state.chat.sport === 'f1') ? driverDescriptionF1(top.team_name) : teamDescription(top.team_name);
     let html = '';
     if (desc) html += `<div style="margin:6px 0 10px 0; color:#cbd5e1;">${desc}</div>`;
     if (second || third) {
-      html += `<div style="margin-top:6px">Other teams you may like: ${second ? `<span class='pill'>${second.team_name}</span>` : ''}${third ? ` <span class='pill'>${third.team_name}</span>` : ''}</div>`;
+      const labelOther = state.chat.sport === 'f1' ? 'Other drivers you may like' : 'Other teams you may like';
+      const fmt = (n) => (state.chat.sport === 'f1') ? `${n}${driverTeamF1(n) ? ' ('+driverTeamF1(n)+')' : ''}` : n;
+      const s2 = second ? `<span class='pill'>${fmt(second.team_name)}</span>` : '';
+      const s3 = third ? `<span class='pill'>${fmt(third.team_name)}</span>` : '';
+      html += `<div style="margin-top:6px">${labelOther}: ${s2}${s3 ? ' ' + s3 : ''}</div>`;
     }
     sub.innerHTML = html;
   }
@@ -853,9 +1089,52 @@ function showOverlayResults(scores) {
   if (btnShareOverlay) btnShareOverlay.onclick = () => shareCurrentAnswersLink();
   if (btnDownloadOverlay) btnDownloadOverlay.onclick = () => downloadOverlay();
   if (btnLearnMore) btnLearnMore.onclick = () => {
-    const desc = teamDescription(top.team_name);
+    const desc = (state.chat.sport === 'cricket') ? teamDescriptionCricket(top.team_name) : (state.chat.sport === 'f1') ? driverDescriptionF1(top.team_name) : teamDescription(top.team_name);
     showToast(desc ? `About ${top.team_name}: ${desc}` : `About ${top.team_name}: profile coming soon`, 'success');
   };
+
+  // Sport-specific CTA button for event booking (app integration)
+  const actionsWrap = overlay ? overlay.querySelector('.overlay-actions') : null;
+  if (actionsWrap) {
+    let btnBook = document.getElementById('btnBookEvent');
+    if (!btnBook) {
+      btnBook = document.createElement('button');
+      btnBook.id = 'btnBookEvent';
+      actionsWrap.insertBefore(btnBook, actionsWrap.firstChild); // put it at the front
+    }
+    // Determine label by sport
+    const sport = state.chat.sport;
+    const isF1 = sport === 'f1';
+    btnBook.textContent = isF1 ? 'Book a Live Race Screening!' : 'Watch A Match Live!';
+    // Wire up to external Events platform (configurable base)
+    const EVENTS_BASE = window.__EVENTS_BASE || 'http://127.0.0.1:8100/ui/explore.html';
+    btnBook.onclick = () => {
+      const u = new URL(EVENTS_BASE);
+      u.searchParams.set('sport', sport);
+      u.searchParams.set('selection', top.team_name);
+      // Category param drives filtering on Events site
+      if (sport === 'f1') u.searchParams.set('category','f1');
+      else if (sport === 'football') u.searchParams.set('category','football');
+      else if (sport === 'cricket') u.searchParams.set('category','cricket');
+      // Include optional metadata for nicer prefilled event listing
+      // All sports route to Screening genre for show listings
+      u.searchParams.set('genre', 'Screening');
+      if (sport === 'f1') {
+        u.searchParams.set('team', driverTeamF1(top.team_name) || '');
+        u.searchParams.set('type', 'screening');
+        u.searchParams.set('q', 'F1');
+      } else {
+        u.searchParams.set('type', 'watch-party');
+        // Help attendee page filter to relevant screening
+        if (sport === 'football') {
+          u.searchParams.set('q', 'football');
+        } else if (sport === 'cricket') {
+          u.searchParams.set('q', 'cricket');
+        }
+      }
+      window.open(u.toString(), '_blank', 'noopener');
+    };
+  }
 }
 
 function hideOverlay() {
@@ -910,7 +1189,8 @@ document.addEventListener('keydown', (e) => {
 
 function shareCurrentAnswersLink() {
   const btnShare = document.getElementById('btnShare') || document.getElementById('btnShareOverlay');
-  const bits = quickKeys.map(k => (state.chat.answers[k] ? '1' : '0')).join('');
+  const keys = (state.chat.sport === 'football') ? footballKeys : (state.chat.sport === 'cricket') ? cricketKeys : f1Keys;
+  const bits = keys.map(k => (state.chat.answers[k] ? '1' : '0')).join('');
   const url = new URL(window.location.href); url.searchParams.set('a', bits);
   const link = url.toString();
   if (navigator.clipboard) {
@@ -931,7 +1211,7 @@ async function downloadOverlay() {
     });
   }
   const canvas = await window.html2canvas(overlayCard);
-  const a = document.createElement('a'); a.download = 'club-match.png'; a.href = canvas.toDataURL('image/png'); a.click();
+  const a = document.createElement('a'); a.download = 'team-match.png'; a.href = canvas.toDataURL('image/png'); a.click();
 }
 
 function showToast(msg, kind='success') {
@@ -958,9 +1238,9 @@ function bindChatControls() {
   if (btnCloseOverlay) btnCloseOverlay.addEventListener('click', hideOverlay);
 }
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => { bindChatControls(); applySportFromQuery(); });
+  document.addEventListener('DOMContentLoaded', async () => { bindChatControls(); applySportFromQuery(); await ensureApiBaseAlive(); const brand=document.getElementById('brandLogo'); if (brand){ brand.style.cursor='pointer'; brand.addEventListener('click', ()=> { window.location.href = './landing.html'; }); }});
 } else {
-  bindChatControls(); applySportFromQuery();
+  (async () => { bindChatControls(); applySportFromQuery(); await ensureApiBaseAlive(); const brand=document.getElementById('brandLogo'); if (brand){ brand.style.cursor='pointer'; brand.addEventListener('click', ()=> { window.location.href = './landing.html'; }); } })();
 }
 
 // Home selection bindings
@@ -974,9 +1254,32 @@ function showChat() {
   if (chat) chat.classList.remove('hidden-section');
   document.getElementById('chatMatch').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-if (chooseFootball) chooseFootball.addEventListener('click', () => { setSportActive(btnSportFootball); showChat(); });
-if (chooseCricket) chooseCricket.addEventListener('click', () => { showToast('Cricket coming soon!', 'success'); });
-if (chooseF1) chooseF1.addEventListener('click', () => { showToast('F1 coming soon!', 'success'); });
+if (chooseFootball) chooseFootball.addEventListener('click', () => {
+  state.chat.sport = 'football';
+  setSportActive(btnSportFootball);
+  const chatContainer = document.querySelector('#chatMatch .chat-container');
+  if (chatContainer) { chatContainer.classList.add('stadium-bg'); chatContainer.classList.remove('cricket-bg'); }
+  const logo = document.getElementById('brandLogo'); if (logo) logo.src = 'https://upload.wikimedia.org/wikipedia/commons/6/6e/Football_%28soccer_ball%29.svg';
+  showChat();
+});
+if (chooseCricket) chooseCricket.addEventListener('click', () => {
+  state.chat.sport = 'cricket';
+  setSportActive(btnSportCricket);
+  const chatContainer = document.querySelector('#chatMatch .chat-container');
+  if (chatContainer) { chatContainer.classList.add('cricket-bg'); chatContainer.classList.remove('stadium-bg'); }
+  const logo = document.getElementById('brandLogo'); if (logo) logo.src = 'https://upload.wikimedia.org/wikipedia/commons/4/42/Cricket_ball.svg';
+  showChat();
+  showToast('Cricket selected', 'success');
+});
+if (chooseF1) chooseF1.addEventListener('click', () => {
+  state.chat.sport = 'f1';
+  setSportActive(btnSportF1);
+  const chatContainer = document.querySelector('#chatMatch .chat-container');
+  if (chatContainer) { chatContainer.classList.add('f1-bg'); chatContainer.classList.remove('stadium-bg'); chatContainer.classList.remove('cricket-bg'); }
+  const logo = document.getElementById('brandLogo'); if (logo) logo.src = F1_LOGO_DATA;
+  showChat();
+  showToast('F1 selected', 'success');
+});
 
 // ---------------- Tabs -----------------
 function initTabs() {

@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Charminar Sports</title>
+  <title>Charminar Predicts</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header>
-    <h1><img class="brand-logo" src="https://upload.wikimedia.org/wikipedia/commons/6/6e/Football_%28soccer_ball%29.svg" alt="logo" /> CHARMINAR SPORTS</h1>
+    <h1><img id="brandLogo" class="brand-logo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='30' fill='%230b132b' stroke='%2394a3b8'/><g fill='%23ffffff'><polygon points='32,14 24,20 28,28 36,28 40,20'/><polygon points='18,26 12,34 18,42 26,38 24,30'/><polygon points='46,26 40,30 38,38 46,42 52,34'/><polygon points='24,44 32,38 40,44 36,52 28,52'/></g></svg>'" alt="logo" /> CHARMINAR PREDICTS</h1>
     <div class="server">
       <label>API Base URL</label>
       <input type="text" id="apiBase" value="http://127.0.0.1:8001" readonly />
@@ -28,12 +28,23 @@
       </div>
     </section>
 
+    <!-- Modes as 4 circles: Football, Cricket, F1, Perfumes -->
+    <section style="margin: 18px 0 6px 0;">
+      <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:center; justify-content:center;">
+        <a href="./index.html?sport=football" title="Football" style="display:grid;place-items:center;text-decoration:none;color:#e5e7eb;width:120px;height:120px;border-radius:50%;background:#0b132b;border:1px solid #1f2a44;box-shadow:0 10px 28px rgba(0,0,0,0.25);font-weight:900;letter-spacing:.02em;">Football</a>
+        <a href="./index.html?sport=cricket" title="Cricket" style="display:grid;place-items:center;text-decoration:none;color:#e5e7eb;width:120px;height:120px;border-radius:50%;background:#0b132b;border:1px solid #1f2a44;box-shadow:0 10px 28px rgba(0,0,0,0.25);font-weight:900;letter-spacing:.02em;">Cricket</a>
+        <a href="./index.html?sport=f1" title="F1" style="display:grid;place-items:center;text-decoration:none;color:#e5e7eb;width:120px;height:120px;border-radius:50%;background:#0b132b;border:1px solid #1f2a44;box-shadow:0 10px 28px rgba(0,0,0,0.25);font-weight:900;letter-spacing:.02em;">F1</a>
+        <a href="./perfumes/index.html" id="circlePerfumes" title="Perfumes" style="display:grid;place-items:center;text-decoration:none;color:#0b0f1a;width:120px;height:120px;border-radius:50%;background:linear-gradient(90deg,#22d3ee,#818cf8);border:1px solid #334155;box-shadow:0 10px 28px rgba(129,140,248,0.25);font-weight:900;letter-spacing:.02em;">Perfumes</a>
+      </div>
+    </section>
+
+
     <section id="sectionQuick" class="hidden-section">
       <h2>Quick Match (12 Questions)</h2>
-      <p>Toggle your answers and click "Find My Club".</p>
+      <p>Toggle your answers and click "Find My Team".</p>
       <div id="quick12" class="quick-grid"></div>
       <div class="row">
-        <button id="btnQuickMatch">Find My Club</button>
+        <button id="btnQuickMatch">Find My Team</button>
         <button id="btnResetQuick" title="Clear all answers">Reset Answers</button>
         <button id="btnDownload" title="Download result image" disabled>Download Result</button>
         <button id="btnShare" title="Copy a shareable link" disabled>Share Link</button>
@@ -58,7 +69,7 @@
         <div class="ball b5"></div>
         <div id="welcomeIntro" class="welcome-box">
           <h3>Welcome to Charminar Sports!</h3>
-          <p>Answer 10 quick questions and we’ll match you to a football club that fits your vibes. Ready to kick off?</p>
+          <p>Answer 10 quick questions and we’ll match you to a team that fits your vibes. Ready to start?</p>
         </div>
         <div class="chat-progress">
           <div id="chatProgressBar" class="progress-bar"><span id="chatProgressText">0 / 10</span></div>
@@ -80,9 +91,9 @@
     <div id="resultOverlay" class="overlay hidden">
       <div class="overlay-content">
         <div class="overlay-card">
-          <div class="overlay-title">Your Club Match</div>
+          <div class="overlay-title">Your Team Match</div>
           <div class="overlay-main">
-            <img id="overlayCrest" class="crest large" alt="Club crest" />
+            <img id="overlayCrest" class="crest large" alt="Team crest" />
             <div id="overlayWinner" class="overlay-winner">Team</div>
           </div>
           <div id="overlaySub" class="overlay-sub"></div>
@@ -159,8 +170,8 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <svg class="side-logo" viewBox="0 0 64 64" role="img" aria-label="Charminar">
-    <title>Charminar</title>
+  <svg class="side-logo" viewBox="0 0 64 64" role="img" aria-label="Charminar Predicts">
+    <title>Charminar Predicts</title>
     <g fill="#e5e7eb" stroke="#94a3b8" stroke-width="0.5">
       <rect x="14" y="36" width="36" height="18" rx="2"/>
       <rect x="20" y="30" width="24" height="6"/>
@@ -174,6 +185,11 @@
     </g>
   </svg>
 
+  <script>
+    // Connect to local Events platform attendee portal for booking
+    window.__EVENTS_BASE = 'http://127.0.0.1:8100/ui/attendee.html';
+    // Perfumes is embedded at ./perfumes/index.html
+  </script>
   <script src="./main.js"></script>
 </body>
 </html>

@@ -93,6 +93,15 @@ footer { padding: 10px 20px; color: #94a3b8; border-top: 1px solid #1f2937; back
   repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 8px); /* subtle pitch stripes */
   transform: rotate(-1deg); opacity: 0.5; pointer-events: none; }
 
+/* F1 theme: dark carbon fiber with red accent glow */
+.f1-bg { position: relative; overflow: hidden; }
+.f1-bg::before { content: ""; position: absolute; inset: 0; background:
+  radial-gradient(circle at 20% 20%, rgba(239,68,68,0.16), transparent 40%),
+  radial-gradient(circle at 80% 30%, rgba(239,68,68,0.10), transparent 45%),
+  repeating-linear-gradient(45deg, rgba(148,163,184,0.05) 0 6px, transparent 6px 12px);
+  filter: blur(10px); pointer-events: none; }
+.f1-bg::after { content: ""; position: absolute; inset: -2px; border: 1px solid rgba(239,68,68,0.22); pointer-events: none; }
+
 .chat-progress { margin-bottom: 8px; }
 .progress-bar { position: relative; height: 8px; background: #0f172a; border: 1px solid #1f2937; border-radius: 999px; overflow: hidden; }
 .progress-bar::before { content: ""; position: absolute; inset: 0; width: var(--pct, 0%); background: linear-gradient(90deg, #22d3ee, #818cf8); transition: width 250ms ease; }
